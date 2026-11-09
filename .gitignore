@@ -1,3 +1,23 @@
-__pycache__
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+
+# Go
+bin/
+*.exe
+*.test
+*.out
+
 .env
-venv
+.env.*
+!.env.example
+postgres_data/
+
+.vscode/
+.idea/
+.DS_Store

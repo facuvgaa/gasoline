@@ -8,3 +8,16 @@ CREATE TABLE IF NOT EXISTS dispatches (
     status VARCHAR(20) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS telemetry_pings (
+    id VARCHAR(36) PRIMARY KEY,
+    truck_plate VARCHAR(20) NOT NULL,
+    latitude DOUBLE PRECISION NOT NULL,
+    longitude DOUBLE PRECISION NOT NULL,
+    speed_kmh DOUBLE PRECISION NOT NULL,
+    valve_open BOOLEAN NOT NULL DEFAULT FALSE,
+    fuel_level_percent DOUBLE PRECISION NOT NULL,
+    timestamp TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_telemetry_truck_timestamp ON telemetry_pings (truck_plate, timestamp DESC);
