@@ -1,0 +1,10 @@
+CREATE TABLE IF NOT EXISTS dispatches (
+    id VARCHAR(36) PRIMARY KEY,
+    truck_plate VARCHAR(20) NOT NULL,
+    driver_id VARCHAR(50) NOT NULL,
+    fuel_type VARCHAR(30) NOT NULL,
+    volume_liters DOUBLE PRECISION NOT NULL,
+    temperature_c DOUBLE PRECISION NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
