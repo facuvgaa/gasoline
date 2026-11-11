@@ -12,6 +12,106 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d gasoline_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.3.1
+    container_name: gasoline-redpanda
+    restart: unless-stopped
+    command:
+      - redpanda
+      - start
+      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr internal://redpanda:9092,external://localhost:19092
+      - --smp 1
+      - --memory 512M
+      - --mode dev-container
+    ports:
+      - "19092:19092"
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true'"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+  dispatch-service:
+    build: ./services/dispatch-service
+    container_name: gasoline-dispatch
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://postgres:postgrespassword@postgres:5432/gasoline_db
+      PORT: "8080"
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  telemetry-service:
+    build: ./services/telemetry-service
+    container_name: gasoline-telemetry
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://postgres:postgrespassword@postgres:5432/gasoline_db?sslmode=disable
+      PORT: ":8081"
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  station-service:
+    build: ./services/station-service
+    container_name: gasoline-station
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://postgres:postgrespassword@postgres:5432/gasoline_db
+      PORT: "8082"
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+
+  reconciliation-service:
+    build: ./services/reconciliation-service
+    container_name: gasoline-reconciliation
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://postgres:postgrespassword@postgres:5432/gasoline_db
+      PORT: "8083"
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      DISPATCH_SERVICE_URL: http://dispatch-service:8080
+      TELEMETRY_SERVICE_URL: http://telemetry-service:8081
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_BEARER_TOKEN_BEDROCK: ${AWS_BEARER_TOKEN_BEDROCK:-}
+      BEDROCK_MODEL_ID: ${BEDROCK_MODEL_ID:-openai.gpt-oss-120b}
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+
+  hitl-dashboard:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:8083
+    container_name: gasoline-hitl-dashboard
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - reconciliation-service
 
 volumes:
   postgres_data:

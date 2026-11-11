@@ -1,14 +1,22 @@
 import uuid
 from datetime import datetime, timezone
+from typing import Optional
 
 from domain.models.discharge import Discharge
 from domain.ports.repository import DischargeRepositoryPort
+from domain.ports.event_publisher import EventPublisherPort
 from application.commands.record_discharge_command import RecordDischargeCommand
 from application.responses.discharge_response import DischargeResponse
 
+
 class RecordDischargeUseCase:
-    def __init__(self, repository: DischargeRepositoryPort):
+    def __init__(
+        self,
+        repository: DischargeRepositoryPort,
+        event_publisher: Optional[EventPublisherPort] = None,
+    ):
         self._repository = repository
+        self._event_publisher = event_publisher
 
     def execute(self, command: RecordDischargeCommand) -> DischargeResponse:
         discharge = Discharge(
@@ -22,5 +30,8 @@ class RecordDischargeUseCase:
         )
 
         self._repository.save(discharge)
+
+        if self._event_publisher is not None:
+            self._event_publisher.publish_discharge_recorded(discharge)
 
         return DischargeResponse.model_validate(discharge)
